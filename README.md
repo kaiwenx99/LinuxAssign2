@@ -1,4 +1,4 @@
-# 2420 as 2 start configuration files
+# ACIT2420 Assignment 2
 
 ## Basic Setup
 
