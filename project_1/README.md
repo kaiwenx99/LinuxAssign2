@@ -16,4 +16,20 @@ The content of packages.txt:
 
 ## Create symbolic links
 
-## Call other scripts
+## Call other scripts for system setup
+
+To make sure the script is executable, run the following command first:
+
+```
+chmod +x ./call_scripts.sh
+```
+
+> Add execution permission to this script file
+
+Then run this script with root privilege with `sudo`:
+
+```
+sudo ./call_scripts.sh
+```
+
+> Execute call_scripts.sh to call the install_packges script and symbolic_links script
