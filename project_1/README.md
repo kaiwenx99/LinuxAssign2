@@ -6,7 +6,14 @@ Create a txt file containing a user-defined list of packages to be installed usi
 
 - kakoune
 - tmux
-  > Put all packages into one file benefits future updates, by managing packages in isolated from configuration script.
+
+> Put all packages into one file benefits future updates, by managing packages in isolated from configuration script.
 
 The content of packages.txt:
 ![packges.txt](/imgs/add_packages.png)
+
+## Install Packages
+
+## Create symbolic links
+
+## Call other scripts
