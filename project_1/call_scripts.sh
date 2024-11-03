@@ -9,7 +9,8 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 # Call the package installation script
-./install_packages.sh
+./install_packages.sh "$@"
+# "$@" gets any arguments provided by the user to specify packages to be installed
 
 # Call the symbolic link setup script
 ./symbolic_links.sh
