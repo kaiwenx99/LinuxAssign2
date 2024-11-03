@@ -12,10 +12,6 @@ Create a txt file containing a user-defined list of packages to be installed usi
 The content of packages.txt:
 ![packges.txt](/imgs/add_packages.png)
 
-## Install Packages
-
-## Create symbolic links
-
 ## Call other scripts for system setup
 
 To make sure the script is executable, run the following command first:
