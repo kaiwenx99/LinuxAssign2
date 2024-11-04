@@ -29,3 +29,5 @@ sudo ./call_scripts.sh
 ```
 
 > Execute call_scripts.sh to call the install_packges script and symbolic_links script
+
+## ADD OUTPUT HERE (DEBUG)
