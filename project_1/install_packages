@@ -9,7 +9,6 @@ if [[ $EUID -ne 0 ]]; then
 # Return a non-zero exit code, indicate error happened, user don't have priviledge to run it
 fi
 
-
 # Define the path variable pointing to the package file
 package_filepath="packages.txt" 
 
@@ -22,7 +21,6 @@ fi
 
 # Initialize an empty array to store package names
 packages=()
-
 
 # A while loop reads each line from "$package_filepath" and add it into packages array
 while IFS= read -r line; do
@@ -81,9 +79,9 @@ install_package() {
   fi
 }
 
-# Define dynamic options for getopts
+# Define user customized options for getopts
 options=""
-# Initializes an empty string 'option'
+# Initialize an empty string 'option'
 # Iterate over the packages array
 for i in "${!packages[@]}"; do
 # '${!packages[@]}' display the indexes of all packages in a array
@@ -124,4 +122,3 @@ done <<< "$user_options"
 # Feed "$user_options" variable directly to while loop for processing
 
 echo "Packages installation is completed."
-
