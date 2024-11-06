@@ -6,119 +6,52 @@
 if [[ $EUID -ne 0 ]]; then
   echo "Error: Please run this script with root privilege."
   exit 1
-# Return a non-zero exit code, indicate error happened, user don't have priviledge to run it
+# Error handle: Return a non-zero exit code when error happened, user doesn't have privilege to run it
 fi
 
-# Define the path variable pointing to the package file
-package_filepath="packages.txt" 
-
-# Check if package file exists as a regular `file`
-if [[ ! -f "$package_filepath" ]]; then
-  echo "Error: Package file '$package_filepath' does not exist."
-  exit 1
-# Return a non-zero exit code, indicate error happened, no such package_file
-fi
-
-# Initialize an empty array to store package names
-packages=()
-
-# A while loop reads each line from "$package_filepath" and add it into packages array
-while IFS= read -r line; do
-# IFS(Internal Field Separator) is a built-in shell variable, a 3-char string with a space, tab, and newline
-# Ref: https://www.baeldung.com/linux/ifs-shell-variable
-# 'read -r' reads one line at a time from "$package_filepath"
-# 'read' splits string into fields, assigning each new word to an argument
-# '-r' disable backslashes to escape characters, so line reading process won't be interrupted.
-# Ref: https://phoenixnap.com/kb/bash-read
-  packages+=("$line")
-  # Append each line (each package name) to the packages array
-done < "$package_filepath"
-# Pass "$package_filepath" into this while loop for iteration
-# Addition: the reason for using IFS instead of for loop and cat to iterate packages.txt
-# To deal with anyspecial characters or leading/trailing spaces which may caused error
-# Ref: https://www.cyberciti.biz/faq/unix-linux-bash-while-read-function-define-ifs-delimiter/
-
-# Check if packages is empty
-if [[ ${#packages[@]} -eq 0 ]]; then
-# If the number of elements in packages array is 0, then there is no packages in pacages.txt
-# '${#packages[@]}' gets the number of elements in 'packages' array
-# '-eq 0' is equal to 0
-  echo "Error: No packages in '$package_filepath'."
-  exit 1
-# Return a non-zero exit code, indicate error happened, no packages in packages.txt
-fi
-
-# Show all available packages options to users
-echo "These are the packages available for installation:"
-for i in "${!packages[@]}"; do
-# Display the indexes of all packages in a array
-  echo "${packages[i]} (option: -${i})"
-# Output example: "kakoune (option: -0)
-done
-
-echo "You can install packages by specifying options, for example, '-0 -1' to install the first two packages."
-
-# A prompt to ask user to pass in package options for installation
-read -p "Enter package options to install (e.g., '-0 -1'): " user_options
-# 'read' read one line from input, and assign the input to variable "user_options".
-# '-p' display a prompt
-# Ref: https://ss64.com/bash/read.html
+# Initialize an array for storing fail to install packages
+failed_packages=()
 
 # Function to install a package
 install_package() {
-  local package=$1
-# Assigned the first argument passed into this function to a local variable 'package'
-  if pacman -S "$package" --noconfirm; then
-# '-S' synchronize packages.
-# '--noconfirm' skips “Are you sure?” messages when installing packages.
-# Ref: https://man.archlinux.org/man/pacman.8.en
-    echo "Successfully installed $package."
+  # '$1' stores the first argument pass into this function
+  # '-Q': In pacman, '-Q' queries the local package database.
+  # Ref: https://wiki.archlinux.org/title/Pacman
+  if ! pacman -Q "$1" &> /dev/null; then
+  # Error handle: if package installed already, '-Q' will retrieve the package name and version
+  # '&> /dev/null' redirects all output (both standard output and standard error) to /dev/null
+    echo "Installing $1 now..."
+    if ! pacman -S --noconfirm "$1"; then
+    # '-S' synchronize packages.
+    # '--noconfirm' skips “Are you sure?” messages when installing packages.
+    # Ref: https://man.archlinux.org/man/pacman.8.en
+      echo "Error: Failed to install $1."
+      # Error handle: If the installation fails, the echo prints messages to inform user
+      # Add the name ("$1") of the failed to install package to 'failed_packages' array.
+      failed_packages+=("$1")
+    fi
   else
-    echo "Can not install $package."
-# Output this message when installation fails.
+  # When 'pacman -Q "$1"' is True, that means this package exists in local package database
+    echo "$1 is already installed."
   fi
 }
 
-# Define user customized options for getopts
-options=""
-# Initialize an empty string 'option'
-# Iterate over the packages array
-for i in "${!packages[@]}"; do
-# '${!packages[@]}' display the indexes of all packages in a array
-  options+="${i}"
-# Append each index from the package array to the options string
-# After iteration the option will be like "01234" indicating 5 packages
+# Loop through each package argument from user input, call install_package() to install each
+for package in "$@"; do
+# "$@" stores all arguments passed to the script
+  install_package "$package"
 done
 
-# Parse options with 'getopts'
-while getopts "$options" opt; do
-# Each option in options is captured as 'opt'
-# 'case' handles each possible 'opt'
-  case $opt in
-    # Match any number from 0 to 99
-    [0-9]|[1-9][0-9])
-    # This range is divided in to two ranges: [0-9] refers to 0 to 9, [1-9][0-9] refers to 10 to 99
-    # Ref: https://www.regextutorial.org/regex-for-numbers-and-ranges.php
-      # Convert option to an integer
-      index=$(($opt)) # Assign index variable with opt value
-      if [ "$index" -lt "${#packages[@]}" ]; then
-            # '${#packages[@]}' calculates how many elements are there in packages array, which is the length of this array
-            # '-lt' less than compares the index value and length of packages, if True, opt is within range, proceed
-        # Call 'install_package' with the package at the specified index
-        install_package "${packages[$index]}"
+# Handle installation failure
+if [[ ${#failed_packages[@]} -gt 0 ]]; then
+# If the failed_packages array is not empty, poceed to display user failed packages
+# ${#failed_packages[@]}: get the number of elements in failed_packages array
+# '-gt 0': if number of elements greater than 0, failure occured
+  echo "The following packages failed to install: ${failed_packages[*]}"
+  exit 1
+  # Error handle: Return a non-zero exit code when error happened,when there are packages can not be installed
+else
+  echo "Successfully installed all packages you specified."
+fi
 
-      else # When the index value is out of the range, can not install package, display error
-        echo "There is no package at index $index"
-      fi
-      ;;
-    # If option is not a number, catch all other cases using *
-    *)
-      echo "There is no such option: -$OPTARG"
-  # '$OPTARG' is a built-in of getopts, holds the option passed in by the user
-  # Ref: https://docs.oracle.com/cd/E86824_01/html/E54763/getopts-1.html
-      ;;
-  esac
-done <<< "$user_options"
-# Feed "$user_options" variable directly to while loop for processing
-
-echo "Packages installation is completed."
+echo "Packages installation done."

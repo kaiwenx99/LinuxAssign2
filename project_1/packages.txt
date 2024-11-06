@@ -1,3 +1,0 @@
-kakoune
-tmux
-vim

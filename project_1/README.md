@@ -1,59 +1,31 @@
 # ACIT2420 Assignment 2 Project 1
 
-## Basic Setup
-
-Create a txt file containing a user-defined list of packages to be installed using `nvim`:
-
-- kakoune
-- tmux
-
-> Put all packages into one file benefits future updates, by managing packages in isolated from configuration script.
-
-The content of packages.txt:
-![packges.txt](/imgs/add_packages.png)
-
 ## Script 1: Install packages
 
-The logic of this script can be summarized to the following steps:
+1. Check root priviledge
 
-1. Root Privilege Check:
+- Check if the script being run with root privilege.
+- If not, display error message and exits with a non-zero status.
 
-- Make sure the script is executed with root privilege.
-- Exit with error code if not root.
+2. Handle installation failure
 
-2. Package File Check:
+- Initiate fack_packages array to store names of packages failed to install
 
-- Define the path to packages.txt.
-- Check if packages.txt exists as a regular file.
-- Exit with error code if file not exist.
+3. Define install_package function
 
-3. Read Packages into Array:
+- To install a package
+- Steps: if a package is installed or not, installs it if not, record installation failures, display info to user
 
-- Read each line from packages.txt and append it to an `packages` array.
-- Make sure each line (package_name) is stored as an individual element.
+4. Process user specified options
 
-4. Empty Array Check:
+- Loops through each package passed in as an argument to the script by user
+- Calls install_package for each specified package to install
 
-- Check if `packages` is empty.
-- Exit with error code if no packages in packages.txt.
+5. Handle installation failure complete
 
-5. Display Packages:
-
-- Display each package as an option with array index to let users select specific packages.
-
-6. Prompt for Package Options:
-
-- Prompt asks the user to enter options corresponding to package indexes for installation.
-
-7. Define Package Installation Function:
-
-- install_package(): For installing each specified package with pacman.
-
-8. Parse Options with getopts:
-
-- Initialize a string of indexes based on available packages.
-- Parse user input options using getopts for each package option and install the package using the corresponding index.
-- Exit with error message if user pass in an invalid index beyond `packages` range or non-index option.
+- After all installations, check if failed_packages is empty
+- If there are failures: List failed packages, print an error message, and exit with an error code
+- If all packages installed successfully: Print a success message
 
 ## Script 2: Create symbolic links
 
