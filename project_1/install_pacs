@@ -1,0 +1,54 @@
+#!/bin/bash
+# Specify the interpreting shell for this script
+
+# Check if the script is run as root by comparing root user ID 0 with envionment user ID
+# Ref: man bash, /EUID section
+if [[ $EUID -ne 0 ]]; then
+  echo "Error: Please run this script with root privilege."
+  exit 1
+# Error handle: Return a non-zero exit code when error happened, user doesn't have privilege to run it
+fi
+
+# Check if there is a file(-f) storing package names
+if [[ ! -f packages ]]; then
+    echo "Error: packages file not exist."
+    exit 1
+# Error handle: Return a non-zero exit code when error happened, there is no such file
+fi
+
+# Check if packages is empty or not by checking size(-s) is 0 or not
+if [[ ! -s packages ]]; then
+    echo "Error: packages file is empty."
+    exit 1
+# Error handle: Return a non-zero exit code when error happened, file is empty
+fi
+
+PACKAGES=$(tr '\n' ' ' < packages)
+
+# Function to install a package
+install_package() {
+  # '$1' stores the first argument pass into this function
+  # '-Q': In pacman, '-Q' queries the local package database.
+  # Ref: https://wiki.archlinux.org/title/Pacman
+  if ! pacman -Q "$1" &> /dev/null; then
+  # Error handle: if package installed already, '-Q' will retrieve the package name and version
+  # '&> /dev/null' redirects all output (both standard output and standard error) to /dev/null
+    echo "Installing $1 now..."
+    if ! pacman -S --noconfirm "$1"; then
+    # '-S' synchronize packages.
+    # '--noconfirm' skips “Are you sure?” messages when installing packages.
+    # Ref: https://man.archlinux.org/man/pacman.8.en
+      echo "Error: Failed to install $1."
+    fi
+  else
+  # When 'pacman -Q "$1"' is True, that means this package exists in local package database
+    echo "$1 is already installed."
+  fi
+}
+
+# Loop through each package argument from PACKAGES array
+for package in $PACKAGES; do
+  install_package "$package"
+done
+
+echo "Packages installation done."
