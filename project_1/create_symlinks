@@ -1,0 +1,47 @@
+#!/bin/bash
+# Specify the interpreting shell for this script
+
+# Check if the script is run as root by comparing root user ID 0 with envionment user ID
+# Ref: man bash, /EUID section
+if [[ $EUID -ne 0 ]]; then
+  echo "Error: Please run this script with root privilege."
+  exit 1
+# Error handle: Return a non-zero exit code when error happened, user doesn't have privilege to run it
+fi
+
+# Create necessary directories if not exist
+# '-p' allow to create parent directories
+mkdir -p ~/bin ~/.config/kak ~/.config/tmux
+
+# Function to create symbolic links and check if path exist
+create_symlink() {
+# take source path as first argument and symbolic link as second argument
+  src_link=$1
+  dest_link=$2
+
+  # [[ -e "$src_link" ]]: '-e' checks if a path exist or not, if yes, return true
+  if [[ -e "$src_link" ]]; then
+  # [[ln -sf "$src_link" "$dest_link"]]: create a symbolic link ($dest_link) to a source file ($src_link)
+  # Ref:https://phoenixnap.com/kb/symbolic-link-linux#:~:text=Use%20the%20ln%20command%20to,directory's%20absolute%20or%20relative%20path.
+    if ln -sf "$src_link" "$dest_link"; then
+      echo "Successfully created symlink: $dest_link -> $src_link"
+    else
+      echo "Error: Failed to create symlink for $src_link"
+    fi
+  else
+    echo "Error: Source $src_link does not exist."
+  fi
+}
+
+
+# Create symbolic link to bin
+# 1st argument "$(pwd)/bin": constructs the source path by adding /bin to the output of print current working dir
+# 2nd argument "~/bin": the detination path of the symbolic link which it points to 
+create_symlink "$(pwd)/bin" ~/bin
+
+# Create symbolic link to 2 config files
+create_symlink "$(pwd)/config/kak/kakrc" ~/.config/kak/kakrc
+create_symlink "$(pwd)/config/tmux/tmux.conf" ~/.config/tmux/tmux.conf
+
+# Create symbolic link to home/bashrc
+create_symlink "$(pwd)/home/bashrc" ~/.bashrc
