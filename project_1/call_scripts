@@ -1,18 +1,89 @@
 #!/bin/bash
+# Specify the interpreting shell for this script
+
+# Show user the syntax for customization
+# Example: sudo ./main_script.sh -i kakoune tmux -l
+user_guide() {
+  echo "Syntax: $0 [-i package1 package2 ...] [-l]"
+  echo "-i: Install specified packages (e.g., -i kakoune tmux)"
+  echo "-l: Create symbolic links for configuration files"
+  exit 1
+  # Return a non-zero exit code, indicate error happened, user didn't pass in options
+}
 
 # Check if the script is run as root by comparing root user ID 0 with envionment user ID
 # Ref: man bash, /EUID section
 if [[ $EUID -ne 0 ]]; then
   echo "Error: Please run this script with root privilege."
   exit 1
-# Return a non-zero exit code, indicate error happened, user don't have priviledge to run it
+# Return a non-zero exit code, indicate error happened, user don't have privilege to run it
 fi
 
-# Call the package installation script
-./install_packages.sh "$@"
-# "$@" gets any arguments provided by the user to specify packages to be installed
+# Initiate variables to store user options, default false indicating it's not speciffied
+install_opt=false
+link_opt=false
+call_install_packages=()
+# Initiate a function to execute install_packages script
 
-# Call the symbolic link setup script
-./symbolic_links.sh
+# Parse user options with getopts
+while getopts "i:l" opt; do
+# 'i:l': 'i:' means this option expects arguments, '-l' does not need argument
+  case "$opt" in
+    i)
+    # When user pass in '-i' option, change install_opt to True
+      install_opt=true
+      # Remove 1 positional param, here -i is removed, keep parsing the next param, which is the package name
+      shift
+      # Looping through all params, when the param is not "-*" format, like an option (e.g., -l)
+      while [[ $1 && $1 != -* ]]; do
+      # Add user specified arguments (package names) to the call_install_packages array
+        call_install_packages+=("$1")
+        shift
+      done
+      ;;
+    l)
+    # When user pass in '-l' option, change install_opt to True
+      link_opt=true
+      ;;
+    *)
+    # When other arguments occur, dislay the user_guide function again showing the syntax
+      user_guide
+      ;;
+  esac
+done
+
+# Check if any option is provided
+# If install_opt and link_opt are still false, means user didn't pass in any options
+if ! $install_opt && ! $link_opt; then
+  usage
+  # Dislay the user_guide function again showing the syntax
+fi
+
+# Run package installation when install_opt is true, means user pass in specified package name
+if $install_opt; then
+# '#call_install_packagespackages[@]' is the number of all elements in this array
+# When there is no element in this array, '-eq 0' number equals to 0
+  if [[ ${#call_install_packagespackages[@]} -eq 0 ]]; then
+    echo "Error: No packages for installation."
+    exit 1
+    # Return a non-zero exit code, indicate error happened, user didn't pass in package names
+  fi
+  # If user did pass in package option, run ./install_packages script with the packages array as arguments
+  ./install_packages "${call_install_packagespackages[@]}"
+fi
+
+# Run symbolic link creation
+# When link_opt is not empty, means user specified to create symbolic link, proceed
+if $link_opt; then
+  if ./create_symlinks; then
+  # When run ./create_symlinks sucessfully, proceed
+    echo "Symbolic links created."
+  else
+    echo "Symbolic link creation failed."
+    exit 1
+  fi
+else
+  echo "You didn't specify symbolic link creation."
+fi
 
 echo "Your system is setup successfully"
