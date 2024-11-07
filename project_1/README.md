@@ -87,3 +87,11 @@ Then make a file to store packages need to be installed:
 5. No options case
 
 - If no option passed in, calls user_guide to show the correct syntax.
+
+## Verify running results
+
+1. Verify installed packages:
+   ![verify_pacs](/imgs/verify_pacs.png)
+
+2. Verify created links:
+   ![verify_links](/imgs/verify_links.png)
