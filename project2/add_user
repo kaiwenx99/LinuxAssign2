@@ -1,0 +1,158 @@
+#!/bin/bash
+# Specify the interpreting shell for this script
+
+# Check if the script is run as root by comparing root user ID 0 with envionment user ID
+# Ref: man bash, /EUID section
+if [[ $EUID -ne 0 ]]; then
+  echo "Error: Please run this script with root privilege."
+  exit 1
+# Error handle: Return a non-zero exit code when error happened, user doesn't have privilege to run it
+fi
+
+
+# Usage function to show user the syntax for options if user didn't specify
+usage() {
+    echo "Usage: sudo $0 -u username -s shell -h user_home_dir [-g additional_group1 additional_group2]"
+    echo "Options:"
+    echo "  -u  Specify the username"
+    echo "  -s  Specify the shell"
+    echo "  -h  Specify the user's home directory"
+    echo "  -g  Add user to additional group (optional)"
+    exit 1
+    # Return a non-zero exit code, indicate error happened, user didn't pass in all mandatory options
+}
+
+# Parse user passed in options using getopts
+# ':' after each character specify this option requires an argument
+# Example: -u <user_name>
+while getopts ":u:s:h:g:" opt; do
+    case ${opt} in
+        u) 
+        USERNAME="${OPTARG}" 
+    # OPTARG holds the passed in argument for the current option
+    # Assign the argument follow -u to USERNAME
+        ;;
+        s) 
+        SHELL="${OPTARG}" 
+        ;;
+        h) 
+        HOME_DIR="${OPTARG}" 
+        ;;
+        g) 
+        ADDITIONAL_GROUPS="${OPTARG}" 
+        ;;
+        *) 
+    # If any option passed in does not matches the options above, wildcard will be triggered
+    # It calls the usage function to show user the correct syntax
+        usage 
+        ;;
+    esac
+done
+
+# Check if all mandatory options are fulfilled
+# "-z" checks if the length of the string is zero, if any of these option is zero, means its missing an argument
+# Ref: man test
+if [ -z "${USERNAME}" ] || [ -z "${SHELL}" ] || [ -z "${HOME_DIR}" ]; then
+    usage
+# It calls the usage function to show user the correct syntax
+fi
+
+# Check if the user already exists by searching for user name in /etc/passwd
+# "grep -q" do not write anything to standard output
+# Ref: man grep
+if grep -q "^${USERNAME}:" /etc/passwd; then
+# "^${USERNAME}:" checks if the exact username appears at the start of a line in the file
+# Ref by using "cat /etc/passwd" to view other user info
+# Example output: root:x:0:0::/root:/usr/bin/bash
+    echo "Error: User '${USERNAME}' already exists."
+    exit 1
+fi
+
+# Create the user entry in /etc/passwd
+# Find the largest GID and increase by 1 for the new group
+# "cut -d: -f3 /etc/group" extracts the third field (GID) from each line of the /etc/group file using semi column : as delimiter
+# Ref: /etc/group format (root:x:0:root)
+USER_ID=$(($(cut -d: -f3 /etc/passwd | sort -n | tail -1) + 1))
+            # "sort -n" sorts retreived GIDs numerically
+            # "tail -1" retrieves the largest GID listed at the bottom.
+            # "+1" increase the orginal lasgest ID by one to assign new ID to the new group
+GID="${USER_ID}"
+# Assign new group ID with new user ID
+# Add the user entry directly to /etc/passwd
+echo "${USERNAME}:x:${USER_ID}:${GID}:${USERNAME}:${HOME_DIR}:${SHELL}" >> /etc/passwd
+# "echo" output the entry "${USERNAME}:x:${USER_ID}:${GID}:${USERNAME}:${HOME_DIR}:${SHELL}" then redirets the result using ">>" to target file
+if [ $? -ne 0 ]; then
+    echo "Error: Failed to add user to /etc/passwd."
+    exit 1
+fi
+
+# Create group entry in /etc/group
+echo "${USERNAME}:x:${GID}:" >> /etc/group
+# "echo" output the entry "${group}:x:${GID}:" then redirets the result using ">>" to target file
+# So "${USERNAME}:x:${GID}:" is appended to target file /etc/group
+if [ $? -ne 0 ]; then
+# If the previous execution failed, return non-zero code and display user the error
+    echo "Error: Failed to add group for user '${USERNAME}'."
+    exit 1
+fi
+
+# Create the home directory along with the specified parent directory if not exists
+mkdir -p "${HOME_DIR}"
+if [ $? -ne 0 ]; then
+# If the previous execution failed, return non-zero code and display user the error
+    echo "Error: Failed to create home directory '${HOME_DIR}'."
+    exit 1
+fi
+# Copy files recursively from "/etc/skel/." to "${HOME_DIR}"
+cp -r /etc/skel/. "${HOME_DIR}"
+chown -R "${USERNAME}:${USERNAME}" "${HOME_DIR}"
+# Changes the ownership of the home directory and its contents to the user
+# "-R" changes ownership recursively for all files and directories inside ${HOME_DIR}
+# "${USERNAME}:${USERNAME}" specifies both the user and group ownership are set to ${USERNAME}
+
+# Add user to additional groups if specified
+# "-z" checks if the length of the string is zero, if any of these option is zero, means no specified, skip
+if [ ! -z "${ADDITIONAL_GROUPS}" ]; then
+# loop through each element group in ADDITIONAL_GROUPS array
+    for group in ${ADDITIONAL_GROUPS}; do
+        # Check if the group exists; if not, create a new entry in /etc/group
+        if ! grep -q "^${group}:" /etc/group; then
+# Find the largest GID and increase by 1 for the new group
+# "cut -d: -f3 /etc/group" extracts the third field (GID) from each line of the /etc/group file using semi column : as delimiter
+# Ref: /etc/group format (root:x:0:root)
+            GID=$(($(cut -d: -f3 /etc/group | sort -n | tail -1) + 1))
+            # "sort -n" sorts retreived GIDs numerically
+            # "tail -1" retrieves the largest GID listed at the bottom.
+            # "+1" increase the orginal lasgest ID by one to assign new ID to the new group
+            echo "${group}:x:${GID}:" >> /etc/group
+            # Add a new group to /etc/group file
+            # "echo" output the entry "${group}:x:${GID}:" then redirets the result using ">>" to target file
+            # "x" is a placeholder character for the group password
+        fi
+
+        # Add the user to an existing group in /etc/group
+        sed -i "/^${group}:/ s/$/,${USERNAME}/" /etc/group
+        # "sed -i" stream editor modifies this file in place without printing to the console
+        # Ref: https://www.geeksforgeeks.org/sed-command-in-linux-unix-with-examples/
+        # "/^${group}:/ s/$/,${USERNAME}/" searches for one line starts with specified group name (^${group}:)
+        # "s/$/,${USERNAME}/" appends ",${USERNAME}" to the end of that line, adding user to this group member list
+        if [ $? -ne 0 ]; then
+        # If the previous execution failed, return non-zero code and display user the error
+            echo "Error: Failed to add '${USERNAME}' to group '${group}'."
+        fi
+    done
+fi
+
+# Set password for the new user with passwd command
+# This command encrypted the password and store itin /etc/shadow
+passwd "${USERNAME}"
+# Check if the previous exit code is equal to 0
+# If not, tell user set passwd fail
+if [ $? -ne 0 ]; then
+    echo "Error: Failed to set password for '${USERNAME}'."
+    exit 1
+fi
+
+# Tell user creation succeed and exit with success code
+echo "User '${USERNAME}' created successfully."
+exit 0
