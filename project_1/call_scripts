@@ -9,7 +9,7 @@ if [[ $EUID -ne 0 ]]; then
 # Error handle: Return a non-zero exit code when error happened, user doesn't have privilege to run it
 fi
 
-# Show user the syntax for customization if user didn't 
+# Show user the syntax for customization if user didn't specify
 # Example: sudo ./call_script -i
 user_guide() {
   echo "Syntax: sudo $0 [-i] [-l]"
